@@ -1,0 +1,54 @@
+{
+  "name": "mern-testing-debugging",
+  "version": "1.0.0",
+  "description": "Complete MERN application with comprehensive testing and debugging implementations",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "test": "jest --coverage",
+    "test:unit": "jest --selectProjects=server --testPathPattern=unit --coverage",
+    "test:integration": "jest --selectProjects=server --testPathPattern=integration --coverage",
+    "test:client": "jest --selectProjects=client --coverage",
+    "test:e2e": "cd client && npm run test:e2e",
+    "test:watch": "jest --watch",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
+  },
+  "keywords": [
+    "MERN",
+    "testing",
+    "debugging",
+    "jest",
+    "cypress",
+    "react",
+    "node",
+    "express",
+    "mongodb"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@babel/preset-react": "^7.22.15",
+    "babel-jest": "^29.7.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.50.0",
+    "eslint-plugin-react": "^7.33.2",
+    "jest": "^29.7.0",
+    "prettier": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PLP-MERN-Stack-Development/testing-and-debugging-ensuring-mern-app-reliability-Github-Emmi"
+  }
+}

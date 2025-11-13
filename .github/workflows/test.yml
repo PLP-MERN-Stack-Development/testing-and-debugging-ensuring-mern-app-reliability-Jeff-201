@@ -1,0 +1,215 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install server dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Run server linter
+        run: |
+          cd server
+          npm run lint || true
+
+      - name: Run server unit tests
+        run: |
+          cd server
+          npm run test:unit
+
+      - name: Run server integration tests
+        run: |
+          cd server
+          npm run test:integration
+
+      - name: Generate server coverage
+        run: |
+          cd server
+          npm test -- --coverage --coverageReporters=json
+
+      - name: Upload server coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./server/coverage/coverage-final.json
+          flags: server
+          name: server-${{ matrix.node-version }}
+
+  test-client:
+    name: Client Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install client dependencies
+        run: |
+          cd client
+          npm ci
+
+      - name: Run client linter
+        run: |
+          cd client
+          npm run lint || true
+
+      - name: Run client tests
+        run: |
+          cd client
+          npm test
+
+      - name: Generate client coverage
+        run: |
+          cd client
+          npm test -- --coverage --coverageReporters=json
+
+      - name: Upload client coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./client/coverage/coverage-final.json
+          flags: client
+          name: client-${{ matrix.node-version }}
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm run install-all
+
+      - name: Start server
+        run: |
+          cd server
+          npm start &
+          sleep 5
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          MONGODB_URI: mongodb://localhost:27017/test
+          JWT_SECRET: test_secret_key_for_ci
+
+      - name: Start client
+        run: |
+          cd client
+          npm run dev &
+          sleep 10
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          working-directory: client
+          wait-on: 'http://localhost:5173'
+          wait-on-timeout: 120
+          browser: chrome
+
+      - name: Upload Cypress screenshots
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: client/cypress/screenshots
+
+      - name: Upload Cypress videos
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: cypress-videos
+          path: client/cypress/videos
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [test-server, test-client]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm run install-all
+
+      - name: Build client
+        run: |
+          cd client
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: client-build
+          path: client/dist
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-server, test-client]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+
+      - name: Install dependencies
+        run: npm run install-all
+
+      - name: Generate combined coverage
+        run: npm run test:coverage
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}

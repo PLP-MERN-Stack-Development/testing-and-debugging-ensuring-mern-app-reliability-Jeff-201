@@ -1,0 +1,30 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-container {
+  width: 100%;
+  max-width: 450px;
+  padding: 1rem;
+}
+
+.register-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: white;
+  font-size: 0.875rem;
+}
+
+.register-link a {
+  color: white;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.register-link a:hover {
+  opacity: 0.8;
+}

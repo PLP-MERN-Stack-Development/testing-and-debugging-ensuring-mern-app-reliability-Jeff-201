@@ -1,0 +1,24 @@
+.not-found-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.not-found-page h1 {
+  font-size: 6rem;
+  color: #3b82f6;
+  margin-bottom: 1rem;
+}
+
+.not-found-page p {
+  font-size: 1.5rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.not-found-page .btn {
+  text-decoration: none;
+}
