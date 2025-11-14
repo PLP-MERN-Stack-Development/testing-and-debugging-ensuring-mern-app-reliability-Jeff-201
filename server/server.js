@@ -1,24 +1,54 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('./src/app');
 const { logInfo, logError } = require('./src/utils/logger');
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mern-testing';
 
-// Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    logInfo('Connected to MongoDB', { uri: MONGODB_URI.replace(/\/\/.*@/, '//***@') });
-  })
-  .catch((error) => {
-    logError('MongoDB connection error', error);
+let mongoServer;
+
+async function connectToDatabase() {
+  try {
+    if (process.env.NODE_ENV === 'test') {
+      // Use MongoDB Memory Server for tests
+      mongoServer = await MongoMemoryServer.create();
+      const mongoUri = mongoServer.getUri();
+      await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      logInfo('Connected to MongoDB Memory Server for testing');
+    } else if (process.env.NODE_ENV === 'development' && !process.env.MONGODB_URI) {
+      // Use MongoDB Memory Server for development if no URI provided
+      mongoServer = await MongoMemoryServer.create({
+        instance: {
+          startupTimeout: 30000, // Increase timeout to 30 seconds
+        },
+      });
+      const mongoUri = mongoServer.getUri();
+      await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      logInfo('Connected to MongoDB Memory Server for development');
+    } else {
+      // Use provided MongoDB URI
+      await mongoose.connect(MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      logInfo('Connected to MongoDB', { uri: MONGODB_URI.replace(/\/\/.*@/, '//***@') });
+    }
+  } catch (error) {
+    logError('Database connection error', error);
     process.exit(1);
-  });
+  }
+}
+
+// Connect to database
+connectToDatabase();
 
 // Handle MongoDB connection events
 mongoose.connection.on('disconnected', () => {
@@ -37,27 +67,24 @@ const server = app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logInfo('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
+const gracefulShutdown = async () => {
+  logInfo('Graceful shutdown initiated');
+  server.close(async () => {
     logInfo('HTTP server closed');
-    mongoose.connection.close(false, () => {
-      logInfo('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
-});
+    await mongoose.connection.close(false);
+    logInfo('MongoDB connection closed');
 
-process.on('SIGINT', () => {
-  logInfo('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    logInfo('HTTP server closed');
-    mongoose.connection.close(false, () => {
-      logInfo('MongoDB connection closed');
-      process.exit(0);
-    });
+    if (mongoServer) {
+      await mongoServer.stop();
+      logInfo('MongoDB Memory Server stopped');
+    }
+
+    process.exit(0);
   });
-});
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
